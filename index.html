@@ -161,6 +161,10 @@ hr{border:none;border-top:1px solid var(--border);margin-top:18px;}
 .btn-delivery:hover{opacity:.85;}
 .order-step{display:none;}
 .order-step.active{display:block;}
+
+/* BADGES */
+.badge-overlay{position:absolute;bottom:10px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:5px;z-index:10;}
+.badge{background:rgba(230,81,0,.88);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.2);white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3);}
 </style>
 </head>
 <body>
@@ -235,6 +239,14 @@ hr{border:none;border-top:1px solid var(--border);margin-top:18px;}
     </div>
     <div id="catListAdmin" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
     <hr/>
+    <h3 style="margin-top:16px;font-size:15px;color:var(--accent2)">Disparadores personalizados</h3>
+    <label>Agregar disparador propio</label>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="newBadgeInput" placeholder="Ej: 🌟 Nuevo modelo 2025..." style="flex:1"/>
+      <button class="btn-save" style="flex:none;padding:10px 14px" onclick="addCustomBadge()">+</button>
+    </div>
+    <div id="customBadgeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+    <hr/>
     <h3 style="margin-top:16px;font-size:15px;color:var(--accent2)">Productos</h3>
     <div class="prod-list" id="prodList"></div>
     <button class="btn-save" style="margin-top:12px;width:100%" onclick="openProductForm()">+ Nuevo producto</button>
@@ -257,6 +269,21 @@ hr{border:none;border-top:1px solid var(--border);margin-top:18px;}
     <textarea id="pDesc" placeholder="Describe el producto..."></textarea>
     <label>Categoría</label>
     <select id="pCat"></select>
+    <label>Disparadores psicológicos</label>
+    <div id="badgeListForm" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px">
+      <select id="badgeSelect" onchange="addBadge()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;">
+        <option value="">+ Toca para agregar disparador...</option>
+        <option>🔥 Más vendido en Hermosillo</option>
+        <option>🕶️ Ideal para el sol extremo de Sonora</option>
+        <option>🚗 Perfectos para manejar</option>
+        <option>⚡ Stock limitado</option>
+        <option>💎 Edición exclusiva</option>
+        <option>✅ Garantía incluida</option>
+        <option>🎁 Incluye estuche gratis</option>
+        <option>🏆 Calidad premium</option>
+      </select>
+    </div>
     <label>Fotos</label>
     <div class="img-upload-area" onclick="document.getElementById('imgInput').click()">
       <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImages(event)"/>
@@ -394,6 +421,15 @@ function renderGrid(){
         <div class="card-name">${p.name}</div>
         <div class="card-price">$${Number(p.price).toLocaleString()}</div>
       </div>`;
+    // Add badges on card thumb
+    if((p.badges||[]).length){
+      const bOverlay = document.createElement('div');
+      bOverlay.style.cssText='position:relative;';
+      const thumb = card.querySelector('.card-thumb');
+      const badgeHtml = (p.badges||[]).slice(0,2).map(b=>`<span class="badge">${b}</span>`).join('');
+      thumb.style.position='relative';
+      thumb.insertAdjacentHTML('beforeend',`<div class="badge-overlay">${badgeHtml}</div>`);
+    }
     card.onclick=()=>{location.hash='#prod='+p.id;showDetail(p,true);};
     grid.appendChild(card);
   });
@@ -408,14 +444,16 @@ function showDetail(p, pushHistory){
 
   let carouselHTML='';
   if(!imgs.length){
-    carouselHTML=`<div class="detail-carousel"><div class="detail-imgs"><div class="no-img-lg">📦</div></div></div>`;
+    const badgeHTML2 = (p.badges||[]).length ? `<div class="badge-overlay">${(p.badges||[]).map(b=>`<span class="badge">${b}</span>`).join('')}</div>` : '';
+    carouselHTML=`<div class="detail-carousel" style="position:relative;"><div class="detail-imgs"><div class="no-img-lg">📦</div></div>${badgeHTML2}</div>`;
   } else {
     const arrows=imgs.length>1?`<button class="d-prev" onclick="dGoSlide('${p.id}',-1)">&#8249;</button><button class="d-next" onclick="dGoSlide('${p.id}',1)">&#8250;</button>`:'';
     const dots=imgs.length>1?`<div class="d-dots">${imgs.map((_,i)=>`<div class="d-dot${i===0?' active':''}" id="ddot-${p.id}-${i}" onclick="dSetSlide('${p.id}',${i})"></div>`).join('')}</div>`:'';
     const thumbs=imgs.length>1?`<div class="detail-thumbnails">${imgs.map((s,i)=>`<div class="d-thumb${i===0?' active':''}" id="dthumb-${p.id}-${i}" onclick="dSetSlide('${p.id}',${i})"><img src="${s}"/></div>`).join('')}</div>`:'';
-    carouselHTML=`<div class="detail-carousel">
+    const badgeHTML = (p.badges&&p.badges.length) ? `<div class="badge-overlay">${p.badges.map(b=>`<span class="badge">${b}</span>`).join('')}</div>` : '';
+    carouselHTML=`<div class="detail-carousel" style="position:relative;">
       <div class="detail-imgs" id="dimgs-${p.id}">${imgs.map(s=>`<img src="${s}"/>`).join('')}</div>
-      ${arrows}${dots}
+      ${arrows}${dots}${badgeHTML}
     </div>${thumbs}`;
   }
 
@@ -526,7 +564,7 @@ function openAdmin(){
   document.getElementById('shopNameInput').value=window._cfg.shopName||'';
   document.getElementById('waNumber').value=window._cfg.waNumber||'';
   document.getElementById('adminPass').value=window._cfg.adminPass||'1234';
-  renderCatListAdmin();renderProdList();
+  renderCatListAdmin();renderCustomBadgeList();renderProdList();
   document.getElementById('adminOverlay').classList.add('open');
 }
 function closeAdmin(){document.getElementById('adminOverlay').classList.remove('open');}
@@ -590,12 +628,16 @@ function openProductForm(id=null){
     document.getElementById('pDesc').value=p.desc||'';
     document.getElementById('pCat').value=p.cat||'';
     currentImages=[...(p.images||[])];
+    currentBadges=[...(p.badges||[])];
   } else {
     ['pName','pPrice','pDesc'].forEach(i=>document.getElementById(i).value='');
+    currentBadges=[];
     document.getElementById('pCat').value='';
   }
   renderImgPreviews();
   document.getElementById('productOverlay').classList.add('open');
+  renderBadgeListForm();
+  syncCustomBadgesToSelect();
 }
 function closeProductForm(){document.getElementById('productOverlay').classList.remove('open');}
 function handleImages(e){
@@ -633,7 +675,7 @@ async function saveProduct(){
   const price=document.getElementById('pPrice').value;
   if(!name||!price){showToast('Nombre y precio requeridos');return;}
   showToast('Guardando...');
-  const prod={id:editingId||'p'+Date.now(),name,price,desc:document.getElementById('pDesc').value.trim(),cat:document.getElementById('pCat').value,images:currentImages};
+  const prod={id:editingId||'p'+Date.now(),name,price,desc:document.getElementById('pDesc').value.trim(),cat:document.getElementById('pCat').value,images:currentImages,badges:currentBadges};
   if(editingId){const idx=window._prods.findIndex(p=>p.id===editingId);window._prods[idx]=prod;}
   else{window._prods.push(prod);}
   await fbSave();
@@ -757,6 +799,85 @@ function sendOrderWA(type){
   window.open(url,'_blank');
 }
 
+
+let currentBadges = [];
+
+function addBadge(){
+  const sel = document.getElementById('badgeSelect');
+  const val = sel.value;
+  if(!val) return;
+  if(!currentBadges.includes(val)) {
+    currentBadges.push(val);
+    renderBadgeListForm();
+  }
+  sel.value='';
+}
+
+function removeBadge(i){
+  currentBadges.splice(i,1);
+  renderBadgeListForm();
+}
+
+function renderBadgeListForm(){
+  const el = document.getElementById('badgeListForm');
+  if(!el) return;
+  el.innerHTML='';
+  currentBadges.forEach((b,i)=>{
+    const s=document.createElement('span');
+    s.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:16px;padding:4px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px;';
+    s.innerHTML=`${b} <button onclick="removeBadge(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">×</button>`;
+    el.appendChild(s);
+  });
+}
+
+function addCustomBadge(){
+  const val = document.getElementById('newBadgeInput').value.trim();
+  if(!val) return;
+  if(!(window._cfg.customBadges||[]).includes(val)){
+    window._cfg.customBadges = [...(window._cfg.customBadges||[]), val];
+  }
+  document.getElementById('newBadgeInput').value='';
+  renderCustomBadgeList();
+  // Add to select
+  const sel = document.getElementById('badgeSelect');
+  if(sel){
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = val;
+    sel.appendChild(opt);
+  }
+}
+
+function removeCustomBadge(badge){
+  window._cfg.customBadges = (window._cfg.customBadges||[]).filter(b=>b!==badge);
+  renderCustomBadgeList();
+}
+
+function renderCustomBadgeList(){
+  const el = document.getElementById('customBadgeList');
+  if(!el) return;
+  el.innerHTML='';
+  (window._cfg.customBadges||[]).forEach(b=>{
+    const s=document.createElement('span');
+    s.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:16px;padding:4px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px;';
+    s.innerHTML=`${b} <button onclick="removeCustomBadge('${b.replace(/'/g,"\\'")}') " style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">×</button>`;
+    el.appendChild(s);
+  });
+}
+
+function syncCustomBadgesToSelect(){
+  const sel = document.getElementById('badgeSelect');
+  if(!sel) return;
+  // Remove old custom options
+  Array.from(sel.options).forEach(o=>{
+    if(o.dataset.custom) o.remove();
+  });
+  (window._cfg.customBadges||[]).forEach(b=>{
+    const opt = document.createElement('option');
+    opt.value=b; opt.textContent=b; opt.dataset.custom='1';
+    sel.appendChild(opt);
+  });
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
@@ -765,7 +886,7 @@ function showToast(msg){
 
 window.onhashchange=handleHash;
 
-Object.assign(window,{goHome,goCat,openRelated,openWA,closeOrder,goStep,chooseDelivery,sendOrderWA,askPass,closePass,checkPass,openAdmin,closeAdmin,addCategory,removeCategory,saveConfig,openProductForm,closeProductForm,handleImages,removeImg,saveProduct,deleteProduct,dGoSlide,dSetSlide,shareLink});
+Object.assign(window,{goHome,goCat,openRelated,openWA,closeOrder,goStep,chooseDelivery,sendOrderWA,addBadge,removeBadge,addCustomBadge,removeCustomBadge,askPass,closePass,checkPass,openAdmin,closeAdmin,addCategory,removeCategory,saveConfig,openProductForm,closeProductForm,handleImages,removeImg,saveProduct,deleteProduct,dGoSlide,dSetSlide,shareLink});
 </script>
 
 <!-- ORDER MODAL -->
