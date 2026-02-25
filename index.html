@@ -206,8 +206,11 @@ async function init(){
   document.getElementById('loading').style.display='none';
   document.getElementById('shopName').textContent = window._cfg.shopName||'Mi Tienda';
   window._render();
-  // Handle hash AFTER render
-  handleHash();
+  // --- CAMBIO REALIZADO AQUÍ: AHORA ESPERA UN MOMENTO PARA QUE LOS PRODUCTOS SE RENDERICEN ---
+  setTimeout(() => {
+    handleHash();
+  }, 100);
+  // --- FIN DEL CAMBIO ---
 }
 init();
 </script>
