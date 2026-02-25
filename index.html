@@ -22,6 +22,7 @@
 <style>
 :root{--bg:#0f0f0f;--surface:#1a1a1a;--card:#242424;--accent:#25D366;--accent2:#e8c97e;--text:#f0f0f0;--muted:#888;--border:#333;--radius:14px;}
 *{box-sizing:border-box;margin:0;padding:0;}
+html,body{overflow-x:hidden;width:100%;max-width:100%;position:relative;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
 /* LOADING */
@@ -143,15 +144,23 @@ hr{border:none;border-top:1px solid var(--border);margin-top:18px;}
 .empty span{font-size:48px;display:block;margin-bottom:12px;}
 
 /* ORDER MODAL */
-#orderOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;display:none;align-items:flex-end;justify-content:center;}
+#orderOverlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:flex-end;justify-content:center;}
 #orderOverlay.open{display:flex;}
-.order-box{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:24px 20px 32px;border-top:1px solid var(--border);}
-.order-box h3{font-family:'Playfair Display',serif;color:var(--accent2);margin-bottom:6px;font-size:18px;}
-.order-box p{font-size:13px;color:var(--muted);margin-bottom:18px;}
-.order-box input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;margin-bottom:12px;}
-.order-box input:focus{outline:1px solid var(--accent2);}
+.order-box{background:#dcf8c6;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:24px 20px 36px;border-top:3px solid #25D366;max-height:85vh;overflow-y:auto;}
+.order-box h3{font-family:'Playfair Display',serif;color:#075e54;margin-bottom:6px;font-size:18px;}
+.order-box p{font-size:13px;color:#128c7e;margin-bottom:18px;}
+.order-box input{width:100%;background:#fff;border:1px solid #b2dfdb;color:#111;padding:12px 14px;border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;margin-bottom:12px;}
+.order-box input:focus{outline:2px solid #25D366;}
 .btn-wa-send{width:100%;background:var(--accent);color:#000;border:none;padding:15px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(37,211,102,.4);}
-.btn-wa-cancel{width:100%;background:transparent;border:none;color:var(--muted);padding:10px;cursor:pointer;font-size:14px;margin-top:8px;}
+.btn-wa-cancel{width:100%;background:transparent;border:none;color:#128c7e;padding:10px;cursor:pointer;font-size:14px;margin-top:8px;font-weight:600;}
+
+.delivery-btns{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+.btn-delivery{width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;border:2px solid #25D366;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.btn-delivery.envio{background:#25D366;color:#000;}
+.btn-delivery.recoger{background:#fff;color:#075e54;}
+.btn-delivery:hover{opacity:.85;}
+.order-step{display:none;}
+.order-step.active{display:block;}
 </style>
 </head>
 <body>
@@ -677,6 +686,77 @@ function goCat(){
   showCatalog();
 }
 
+function openWA(prodId){
+  const p = window._prods.find(x=>x.id===prodId);
+  if(!p) return;
+  window._orderProd = p;
+  goStep('step1');
+  document.getElementById('orderOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeOrder(){
+  document.getElementById('orderOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function goStep(stepId){
+  document.querySelectorAll('.order-step').forEach(s=>s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+}
+
+function chooseDelivery(type){
+  if(type==='envio'){
+    document.getElementById('orderName').value='';
+    document.getElementById('orderColonia').value='';
+    document.getElementById('orderCalle').value='';
+    goStep('step2envio');
+    setTimeout(()=>document.getElementById('orderName').focus(),200);
+  } else {
+    document.getElementById('orderNameR').value='';
+    document.getElementById('orderDia').value='';
+    goStep('step2recoger');
+    setTimeout(()=>document.getElementById('orderNameR').focus(),200);
+  }
+}
+
+function sendOrderWA(type){
+  const p = window._orderProd;
+  const num = cleanWA(window._cfg.waNumber);
+  let msg = '';
+  if(type==='envio'){
+    const name = document.getElementById('orderName').value.trim();
+    const colonia = document.getElementById('orderColonia').value.trim();
+    const calle = document.getElementById('orderCalle').value.trim();
+    if(!name){ showToast('Escribe tu nombre'); document.getElementById('orderName').focus(); return; }
+    if(!colonia){ showToast('Escribe tu colonia'); document.getElementById('orderColonia').focus(); return; }
+    if(!calle){ showToast('Escribe tu calle'); document.getElementById('orderCalle').focus(); return; }
+    msg = `Hola! Quiero pedir:
+
+📦 *${p.name}* - $${p.price}
+
+🚚 *Requiero cotización de envío*
+👤 *Nombre:* ${name}
+📍 *Colonia:* ${colonia}
+🏠 *Calle:* ${calle}`;
+  } else {
+    const name = document.getElementById('orderNameR').value.trim();
+    const dia = document.getElementById('orderDia').value.trim();
+    if(!name){ showToast('Escribe tu nombre'); document.getElementById('orderNameR').focus(); return; }
+    if(!dia){ showToast('Escribe el día'); document.getElementById('orderDia').focus(); return; }
+    msg = `Hola! Quiero apartar:
+
+📦 *${p.name}* - $${p.price}
+
+🏪 *Pasaré a recoger a la tienda*
+👤 *Nombre:* ${name}
+📅 *Día:* ${dia}`;
+  }
+  const url = `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`;
+  closeOrder();
+  window.open(url,'_blank');
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
@@ -685,22 +765,51 @@ function showToast(msg){
 
 window.onhashchange=handleHash;
 
-Object.assign(window,{goHome,goCat,openRelated,openWA,closeOrder,sendOrderWA,askPass,closePass,checkPass,openAdmin,closeAdmin,addCategory,removeCategory,saveConfig,openProductForm,closeProductForm,handleImages,removeImg,saveProduct,deleteProduct,dGoSlide,dSetSlide,shareLink});
+Object.assign(window,{goHome,goCat,openRelated,openWA,closeOrder,goStep,chooseDelivery,sendOrderWA,askPass,closePass,checkPass,openAdmin,closeAdmin,addCategory,removeCategory,saveConfig,openProductForm,closeProductForm,handleImages,removeImg,saveProduct,deleteProduct,dGoSlide,dSetSlide,shareLink});
 </script>
 
 <!-- ORDER MODAL -->
 <div id="orderOverlay">
   <div class="order-box">
-    <h3>📦 ¿A dónde te lo llevamos?</h3>
-    <p>Déjanos tus datos para completar tu pedido</p>
-    <input type="text" id="orderName" placeholder="Tu nombre completo" maxlength="60"/>
-    <input type="text" id="orderColonia" placeholder="Tu colonia" maxlength="80"/>
-    <input type="text" id="orderCalle" placeholder="Calle y número (opcional)" maxlength="100"/>
-    <button class="btn-wa-send" onclick="sendOrderWA()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-      Enviar pedido por WhatsApp
-    </button>
-    <button class="btn-wa-cancel" onclick="closeOrder()">Cancelar</button>
+
+    <!-- STEP 1: Envío o recoger -->
+    <div class="order-step active" id="step1">
+      <h3>🛍 ¿Cómo lo quieres?</h3>
+      <p>Elige una opción para continuar</p>
+      <div class="delivery-btns">
+        <button class="btn-delivery envio" onclick="chooseDelivery('envio')">🚚 ¿Le cotizamos el envío?</button>
+        <button class="btn-delivery recoger" onclick="chooseDelivery('recoger')">🏪 Pasaré a recoger a la tienda</button>
+      </div>
+      <button class="btn-wa-cancel" onclick="closeOrder()">Cancelar</button>
+    </div>
+
+    <!-- STEP 2A: Envío - pedir domicilio -->
+    <div class="order-step" id="step2envio">
+      <h3>🚚 Datos de envío</h3>
+      <p>Déjanos tus datos y te cotizamos</p>
+      <input type="text" id="orderName" placeholder="Tu nombre completo" maxlength="60"/>
+      <input type="text" id="orderColonia" placeholder="Tu colonia" maxlength="80"/>
+      <input type="text" id="orderCalle" placeholder="Calle y número" maxlength="100"/>
+      <button class="btn-wa-send" onclick="sendOrderWA('envio')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Enviar por WhatsApp
+      </button>
+      <button class="btn-wa-cancel" onclick="goStep('step1')">← Regresar</button>
+    </div>
+
+    <!-- STEP 2B: Recoger - solo nombre y día -->
+    <div class="order-step" id="step2recoger">
+      <h3>🏪 Pasa a recoger</h3>
+      <p>¿Cuándo pasas? Te tenemos listo tu pedido</p>
+      <input type="text" id="orderNameR" placeholder="Tu nombre" maxlength="60"/>
+      <input type="text" id="orderDia" placeholder="Día en que pasarás (ej: mañana, jueves...)" maxlength="60"/>
+      <button class="btn-wa-send" onclick="sendOrderWA('recoger')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Confirmar por WhatsApp
+      </button>
+      <button class="btn-wa-cancel" onclick="goStep('step1')">← Regresar</button>
+    </div>
+
   </div>
 </div>
 </body>
